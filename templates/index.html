@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CF Tag Predictor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #4fc3f7;
+        }
+
+        p.subtitle {
+            color: #888;
+            margin-bottom: 32px;
+            font-size: 0.95rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #16213e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #eee;
+            padding: 16px;
+            font-size: 0.95rem;
+            resize: vertical;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        textarea:focus {
+            border-color: #4fc3f7;
+        }
+
+        button {
+            margin-top: 12px;
+            width: 100%;
+            padding: 14px;
+            background: #4fc3f7;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #81d4fa; }
+        button:disabled { background: #444; cursor: not-allowed; }
+
+        .results {
+            margin-top: 24px;
+        }
+
+        .results h2 {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tag {
+            background: #16213e;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .tag-name { color: #eee; }
+
+        .tag-bar-wrap {
+            width: 60px;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .tag-bar {
+            height: 100%;
+            border-radius: 3px;
+            background: #4fc3f7;
+            transition: width 0.4s ease;
+        }
+
+        .tag-pct {
+            color: #4fc3f7;
+            font-size: 0.8rem;
+            min-width: 36px;
+        }
+
+        .empty {
+            color: #555;
+            font-style: italic;
+            margin-top: 8px;
+        }
+
+        .error {
+            color: #ef5350;
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>CF Tag Predictor</h1>
+    <p class="subtitle">Paste a Codeforces problem statement to predict its tags</p>
+
+    <textarea id="statement" placeholder="Paste problem statement here..."></textarea>
+    <button id="btn" onclick="predict()">Predict Tags</button>
+
+    <div id="error" class="error"></div>
+
+    <div class="results" id="results" style="display:none">
+        <h2>Predicted Tags</h2>
+        <div class="tags" id="tags"></div>
+    </div>
+</div>
+
+<script>
+    async function predict() {
+        const text = document.getElementById("statement").value.trim();
+        const btn = document.getElementById("btn");
+        const error = document.getElementById("error");
+        const results = document.getElementById("results");
+        const tagsDiv = document.getElementById("tags");
+
+        error.textContent = "";
+        results.style.display = "none";
+
+        if (!text) {
+            error.textContent = "Please paste a problem statement first.";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Predicting...";
+
+        try {
+            const response = await fetch("/predict", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({text, top_k: 6, threshold: 0.15})
+            });
+
+            const data = await response.json();
+            const predictions = data.predictions;
+
+            if (!predictions.length) {
+                error.textContent = "No tags predicted with sufficient confidence.";
+                return;
+            }
+
+            tagsDiv.innerHTML = predictions.map(p => `
+                <div class="tag">
+                    <span class="tag-name">${p.tag}</span>
+                    <div class="tag-bar-wrap">
+                        <div class="tag-bar" style="width: ${p.confidence * 100}%"></div>
+                    </div>
+                    <span class="tag-pct">${Math.round(p.confidence * 100)}%</span>
+                </div>
+            `).join("");
+
+            results.style.display = "block";
+
+        } catch (e) {
+            error.textContent = "Error connecting to server.";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Predict Tags";
+        }
+    }
+</script>
+
+</body>
+</html>
