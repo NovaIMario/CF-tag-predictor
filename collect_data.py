@@ -2,6 +2,14 @@ import requests
 import json
 import time
 from bs4 import BeautifulSoup
+"""
+Loading problems.json...
+Loaded 10118 problems
+F1 Score (micro): 0.299
+F1 Score (macro): 0.175
+Saving model...
+Done!
+"""
  
 def get_all_problems():
     print("Fetching problem list from Codeforces API...")
